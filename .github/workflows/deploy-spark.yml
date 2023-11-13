@@ -1,0 +1,48 @@
+name: deploy-spark
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - src/infra/*
+
+defaults:
+  run:
+    shell: pwsh
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency: deploy-spark
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: Production
+    env:
+      PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: Install-Module Az -Force
+      - uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.CLIENT_ID }}
+          tenant-id: ${{ secrets.TENANT_ID }}
+          subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
+          enable-AzPSSession: true
+      - run: .github/scripts/deploy.ps1
+
+  teardown:
+    needs: deploy
+    runs-on: ubuntu-latest
+    environment: Teardown-Production
+    steps:
+      - uses: actions/checkout@v4
+      - run: Install-Module Az -Force
+      - uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.CLIENT_ID }}
+          tenant-id: ${{ secrets.TENANT_ID }}
+          subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
+          enable-AzPSSession: true
+      - run: .github/scripts/teardown.ps1
